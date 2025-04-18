@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { format, addMinutes, isBefore, isEqual, parse } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -49,7 +48,7 @@ function timesOverlap(s1: string, e1: string, s2: string, e2: string) {
 
 const Index = () => {
   const [events, setEvents] = useState<AgendaEvent[]>([]);
-  const [filterDepartment, setFilterDepartment] = useState<Department | "">("");
+  const [filterDepartment, setFilterDepartment] = useState<Department | "all">("all");
   const [open, setOpen] = useState(false);
 
   // Event form states
@@ -70,7 +69,7 @@ const Index = () => {
 
   // Filter events by department if selected
   const displayedEvents = useMemo(() => {
-    return filterDepartment ? events.filter(e => e.department === filterDepartment) : events;
+    return filterDepartment === "all" ? events : events.filter(e => e.department === filterDepartment);
   }, [filterDepartment, events]);
 
   // Check for overlap warning for new event
@@ -152,12 +151,12 @@ const Index = () => {
 
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-4">
         <div>
-          <Select value={filterDepartment} onValueChange={(value) => setFilterDepartment(value as Department | "")} >
+          <Select value={filterDepartment} onValueChange={(value) => setFilterDepartment(value as Department | "all")} >
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Filter by Department" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Departments</SelectItem>
+              <SelectItem value="all">All Departments</SelectItem>
               {departments.map((dep) => (
                 <SelectItem key={dep} value={dep}>
                   {dep}
@@ -296,4 +295,3 @@ const Index = () => {
 };
 
 export default Index;
-
