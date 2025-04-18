@@ -1,5 +1,6 @@
+
 import React, { useState, useMemo } from "react";
-import { format, addDays, startOfWeek, isSameDay } from "date-fns";
+import { format, addDays, startOfWeek, isSameDay, addWeeks, subWeeks, addMonths, subMonths, addYears, subYears } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -79,6 +80,9 @@ const Index = () => {
   const [selectedEvent, setSelectedEvent] = useState<AgendaEvent | null>(null);
   const [openDetail, setOpenDetail] = useState(false);
 
+  // State for currently displayed week start for navigation
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 0 }));
+
   // Generate time slots in 15 min increments from 8:00 to 20:00
   const timeSlots = useMemo(() => {
     const slots = [];
@@ -89,14 +93,13 @@ const Index = () => {
   }, []);
 
   // Calculate current week days (Sunday to Saturday)
-  const weekStart = startOfWeek(new Date(), { weekStartsOn: 0 }); // Sunday
   const daysOfWeek = useMemo(() => {
     const days = [];
     for (let i = 0; i < 7; i++) {
-      days.push(addDays(weekStart, i));
+      days.push(addDays(currentWeekStart, i));
     }
     return days;
-  }, [weekStart]);
+  }, [currentWeekStart]);
 
   // Filter events by department and week
   const filteredEvents = useMemo(() => {
@@ -177,7 +180,7 @@ const Index = () => {
   };
 
   // Constants for event display
-  const EVENT_SLOT_HEIGHT = 36; // reduce height to 36px per 15min slot to be more compact
+  const EVENT_SLOT_HEIGHT = 36; // height per 15min slot to be compact
 
   // Updated daysOfWeek mapping with event columns using new colors and scroll container
   const eventColumns = daysOfWeek.map((d) => {
@@ -244,31 +247,69 @@ const Index = () => {
     );
   });
 
-  // Adjust day header styling with main color for weekday labels
+  // Adjust day header styling with main color for weekday labels, add better styling
   const dayHeaderElements = daysOfWeek.map((d) => (
     <div
       key={format(d, "yyyy-MM-dd")}
-      className="border-b border-gray-300 px-2 py-1 text-center font-semibold select-none"
-      style={{ color: MAIN_COLOR }}
+      className="border-b border-gray-300 border-r px-2 py-2 text-center font-semibold select-none shadow-sm"
+      style={{ 
+        color: "white", 
+        backgroundColor: MAIN_COLOR,
+        userSelect: "none",
+      }}
     >
       {format(d, "EEE, MMM d")}
     </div>
   ));
 
-  // Render time labels on left side in muted gray
+  // Render time labels on left side in muted gray with fixed width
   const timeLabelElements = timeSlots.map((time) => (
     <div key={time} className="h-9 border-t border-gray-200 px-1 text-xs font-mono text-gray-500 select-none leading-[36px]">
       {time.endsWith("00") ? <strong>{time}</strong> : time}
     </div>
   ));
 
+  // Navigation controls for weeks, months, years
+  const navWeekBackward = () => setCurrentWeekStart(subWeeks(currentWeekStart, 1));
+  const navWeekForward = () => setCurrentWeekStart(addWeeks(currentWeekStart, 1));
+  const navMonthBackward = () => setCurrentWeekStart(subMonths(currentWeekStart, 1));
+  const navMonthForward = () => setCurrentWeekStart(addMonths(currentWeekStart, 1));
+  const navYearBackward = () => setCurrentWeekStart(subYears(currentWeekStart, 1));
+  const navYearForward = () => setCurrentWeekStart(addYears(currentWeekStart, 1));
+
   return (
     <div className="min-h-screen bg-gray-50 p-4 flex flex-col items-center">
-      <h1 className="text-3xl font-bold mb-6" style={{ color: MAIN_COLOR }}>
+      <h1 className="text-3xl font-bold mb-4" style={{ color: MAIN_COLOR }}>
         Agenda Weekly Calendar
       </h1>
 
+      {/* Navigation Buttons */}
+      <div className="flex flex-wrap justify-center gap-2 mb-6">
+        <Button variant="outline" onClick={navYearBackward} className="min-w-[3.5rem]">
+          {"<<"}
+        </Button>
+        <Button variant="outline" onClick={navMonthBackward} className="min-w-[3.5rem]">
+          {"<M"}
+        </Button>
+        <Button variant="outline" onClick={navWeekBackward} className="min-w-[3.5rem]">
+          {"<W"}
+        </Button>
+        <div className="flex items-center font-medium px-4 text-lg select-none" style={{color: MAIN_COLOR}}>
+          Week of {format(currentWeekStart, "MMM d, yyyy")}
+        </div>
+        <Button variant="outline" onClick={navWeekForward} className="min-w-[3.5rem]">
+          {"W>"}
+        </Button>
+        <Button variant="outline" onClick={navMonthForward} className="min-w-[3.5rem]">
+          {"M>"}
+        </Button>
+        <Button variant="outline" onClick={navYearForward} className="min-w-[3.5rem]">
+          {">>"}
+        </Button>
+      </div>
+
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4 w-full max-w-7xl px-2">
+        {/* Department Filter Select */}
         <div className="flex-1">
           <Select value={filterDepartment} onValueChange={(value) => setFilterDepartment(value as Department | "all")}>
             <SelectTrigger className="w-full max-w-xs">
@@ -284,6 +325,7 @@ const Index = () => {
             </SelectContent>
           </Select>
         </div>
+        {/* Add Event Dialog */}
         <Dialog open={openAdd} onOpenChange={setOpenAdd}>
           <DialogTrigger asChild>
             <Button>Add Event</Button>
@@ -418,20 +460,22 @@ const Index = () => {
 
       {/* Weekly calendar grid wrapped in horizontally centered and scrollable container */}
       <div
-        className="border border-gray-300 rounded-md bg-white shadow-md w-full max-w-7xl overflow-x-auto"
-        style={{ height: timeSlots.length * EVENT_SLOT_HEIGHT + 40, maxHeight: "540px" }}
+        className="border border-gray-300 rounded-md bg-white shadow-md w-full max-w-7xl overflow-x-auto overflow-y-auto"
+        style={{ maxHeight: 540 }}
       >
         <div className="grid" style={{ gridTemplateColumns: "60px repeat(7, minmax(0, 1fr))" }}>
           {/* Top-left empty cell */}
           <div className="border-b border-r border-gray-300 bg-gray-50"></div>
           {/* Days headers */}
           {dayHeaderElements.map((el) => (
-            <div key={el.key} className="border-b border-r border-gray-300 bg-gray-50">
+            <div key={el.key} className="border-b border-r border-gray-300">
               {el.props.children}
             </div>
           ))}
           {/* Time labels on the left */}
-          <div className="flex flex-col border-r border-gray-300 bg-gray-50">{timeLabelElements}</div>
+          <div className="flex flex-col border-r border-gray-300 bg-gray-50">
+            {timeLabelElements}
+          </div>
           {/* Day columns with events */}
           {eventColumns}
         </div>
