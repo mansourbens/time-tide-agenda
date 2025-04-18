@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { format, addDays, startOfWeek, isSameDay } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -60,6 +59,9 @@ function minutesToTime(minutes: number) {
 function timesOverlap(s1: string, e1: string, s2: string, e2: string) {
   return !(timeToMinutes(e1) <= timeToMinutes(s2) || timeToMinutes(s1) >= timeToMinutes(e2));
 }
+
+const MAIN_COLOR = "#143a5a"; // dark blue
+const SECONDARY_COLOR = "#FF422F"; // red
 
 const Index = () => {
   const [events, setEvents] = useState<AgendaEvent[]>([]);
@@ -174,22 +176,10 @@ const Index = () => {
     toast({ title: "Event added" });
   };
 
-  // Render time labels on the left side
-  const timeLabelElements = timeSlots.map((time) => (
-    <div key={time} className="h-12 border-t border-gray-200 px-1 text-xs font-mono text-gray-500 select-none">
-      {time.endsWith("00") ? <strong>{time}</strong> : time}
-    </div>
-  ));
+  // Constants for event display
+  const EVENT_SLOT_HEIGHT = 36; // reduce height to 36px per 15min slot to be more compact
 
-  // Render days headers
-  const dayHeaderElements = daysOfWeek.map((d) => (
-    <div key={format(d, "yyyy-MM-dd")} className="border-b border-gray-300 px-2 py-1 text-center font-semibold text-gray-700 select-none">
-      {format(d, "EEE, MMM d")}
-    </div>
-  ));
-
-  const EVENT_SLOT_HEIGHT = 48;
-
+  // Updated daysOfWeek mapping with event columns using new colors and scroll container
   const eventColumns = daysOfWeek.map((d) => {
     const dayKey = format(d, "yyyy-MM-dd");
     const eventsForDay = eventsByDay[dayKey] || [];
@@ -197,19 +187,34 @@ const Index = () => {
     return (
       <div
         key={dayKey}
-        className="relative border-r border-gray-300"
-        style={{ minWidth: 0, minHeight: timeSlots.length * EVENT_SLOT_HEIGHT }}
+        className="relative border-r border-gray-300 min-w-0"
+        style={{ minHeight: timeSlots.length * EVENT_SLOT_HEIGHT }}
       >
-        {/* Place events */}
         {eventsForDay.map((ev) => {
           const startMinutes = timeToMinutes(ev.startTime);
           const endMinutes = timeToMinutes(ev.endTime);
-          // Adjust the top relative to the new DAY_START base
           const top = ((startMinutes - DAY_START) / TIME_STEP) * EVENT_SLOT_HEIGHT;
           const height = ((endMinutes - startMinutes) / TIME_STEP) * EVENT_SLOT_HEIGHT;
-          const categoryColor = categories.find((c) => c.value === ev.category)?.color || "bg-gray-400";
 
-          // Detect overlaps for border styling
+          // Map categories to main and secondary colors: main for Work, secondary for Personal, else grey variants
+          let bgColor = "bg-gray-400";
+          let textColor = "text-white";
+          switch (ev.category) {
+            case "Work":
+              bgColor = "bg-[#143a5a]";
+              break;
+            case "Personal":
+              bgColor = "bg-[#FF422F]";
+              break;
+            case "Health":
+              bgColor = "bg-pink-500";
+              break;
+            case "Other":
+              bgColor = "bg-gray-400";
+              textColor = "text-gray-900";
+              break;
+          }
+
           const overlap = eventsForDay.some(
             (other) =>
               other.id !== ev.id && timesOverlap(ev.startTime, ev.endTime, other.startTime, other.endTime)
@@ -218,7 +223,7 @@ const Index = () => {
           return (
             <div
               key={ev.id}
-              className={`${categoryColor} absolute left-1 right-1 rounded-md p-1 text-white text-xs overflow-hidden whitespace-nowrap cursor-pointer select-none`}
+              className={`${bgColor} absolute left-1 right-1 rounded-md p-1 text-xs overflow-hidden whitespace-nowrap cursor-pointer select-none ${textColor} shadow-md`}
               style={{
                 top,
                 height,
@@ -239,20 +244,42 @@ const Index = () => {
     );
   });
 
-  return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <h1 className="text-2xl font-bold mb-4 text-center text-purple-700">Agenda Weekly Calendar</h1>
+  // Adjust day header styling with main color for weekday labels
+  const dayHeaderElements = daysOfWeek.map((d) => (
+    <div
+      key={format(d, "yyyy-MM-dd")}
+      className="border-b border-gray-300 px-2 py-1 text-center font-semibold select-none"
+      style={{ color: MAIN_COLOR }}
+    >
+      {format(d, "EEE, MMM d")}
+    </div>
+  ));
 
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-4">
-        <div>
+  // Render time labels on left side in muted gray
+  const timeLabelElements = timeSlots.map((time) => (
+    <div key={time} className="h-9 border-t border-gray-200 px-1 text-xs font-mono text-gray-500 select-none leading-[36px]">
+      {time.endsWith("00") ? <strong>{time}</strong> : time}
+    </div>
+  ));
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-4 flex flex-col items-center">
+      <h1 className="text-3xl font-bold mb-6" style={{ color: MAIN_COLOR }}>
+        Agenda Weekly Calendar
+      </h1>
+
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4 w-full max-w-7xl px-2">
+        <div className="flex-1">
           <Select value={filterDepartment} onValueChange={(value) => setFilterDepartment(value as Department | "all")}>
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-full max-w-xs">
               <SelectValue placeholder="Filter by Department" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Departments</SelectItem>
               {departments.map((dep) => (
-                <SelectItem key={dep} value={dep}>{dep}</SelectItem>
+                <SelectItem key={dep} value={dep}>
+                  {dep}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -389,9 +416,12 @@ const Index = () => {
         </Dialog>
       </div>
 
-      {/* Weekly calendar grid */}
-      <div className="border border-gray-300 rounded-md bg-white overflow-auto shadow-md select-none" style={{ height: timeSlots.length * EVENT_SLOT_HEIGHT + 40 }}>
-        <div className="grid" style={{ gridTemplateColumns: "60px repeat(7, 1fr)" }}>
+      {/* Weekly calendar grid wrapped in horizontally centered and scrollable container */}
+      <div
+        className="border border-gray-300 rounded-md bg-white shadow-md w-full max-w-7xl overflow-x-auto"
+        style={{ height: timeSlots.length * EVENT_SLOT_HEIGHT + 40, maxHeight: "540px" }}
+      >
+        <div className="grid" style={{ gridTemplateColumns: "60px repeat(7, minmax(0, 1fr))" }}>
           {/* Top-left empty cell */}
           <div className="border-b border-r border-gray-300 bg-gray-50"></div>
           {/* Days headers */}
@@ -400,7 +430,7 @@ const Index = () => {
               {el.props.children}
             </div>
           ))}
-          {/* Time labels */}
+          {/* Time labels on the left */}
           <div className="flex flex-col border-r border-gray-300 bg-gray-50">{timeLabelElements}</div>
           {/* Day columns with events */}
           {eventColumns}
@@ -412,7 +442,9 @@ const Index = () => {
         <DialogContent className="max-w-md" aria-describedby="event-detail-desc">
           <DialogHeader>
             <DialogTitle>Event Details</DialogTitle>
-            <p id="event-detail-desc" className="text-sm text-muted-foreground">Details of the selected event.</p>
+            <p id="event-detail-desc" className="text-sm text-muted-foreground">
+              Details of the selected event.
+            </p>
           </DialogHeader>
           {selectedEvent ? (
             <div className="space-y-3">
@@ -447,4 +479,3 @@ const Index = () => {
 };
 
 export default Index;
-
