@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from "react";
-import { format, addDays, startOfWeek, isSameDay, parse } from "date-fns";
+import { format, addDays, startOfWeek, isSameDay } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -43,8 +43,8 @@ const categories: { value: EventCategory; label: string; color: string }[] = [
 const departments: Department[] = ["HR", "Engineering", "Marketing", "Sales"];
 
 const TIME_STEP = 15;
-const DAY_START = 0; // 00:00
-const DAY_END = 24 * 60; // 1440 minutes
+const DAY_START = 8 * 60; // 8:00 AM in minutes
+const DAY_END = 20 * 60; // 8:00 PM in minutes
 
 function timeToMinutes(timeStr: string) {
   const [h, m] = timeStr.split(":").map(Number);
@@ -77,7 +77,7 @@ const Index = () => {
   const [selectedEvent, setSelectedEvent] = useState<AgendaEvent | null>(null);
   const [openDetail, setOpenDetail] = useState(false);
 
-  // Generate time slots in 15 min increments
+  // Generate time slots in 15 min increments from 8:00 to 20:00
   const timeSlots = useMemo(() => {
     const slots = [];
     for (let m = DAY_START; m < DAY_END; m += TIME_STEP) {
@@ -144,7 +144,7 @@ const Index = () => {
       return;
     }
     if (sMin < DAY_START || eMin > DAY_END) {
-      toast({ title: "Error", description: "Event times must be within the day", variant: "destructive" });
+      toast({ title: "Error", description: `Event times must be between 08:00 and 20:00`, variant: "destructive" });
       return;
     }
     if ((eMin - sMin) % TIME_STEP !== 0) {
@@ -188,11 +188,6 @@ const Index = () => {
     </div>
   ));
 
-  // Render events inside calendar day columns
-  // Calculate top position and height relative to the 24h day
-  // Height is proportional to event duration (in time slots)
-  // top and height are in pixels: each slot 48px height (h-12 = 3rem)
-  // We use absolute positioning relative to day column div (relative position)
   const EVENT_SLOT_HEIGHT = 48;
 
   const eventColumns = daysOfWeek.map((d) => {
@@ -209,7 +204,8 @@ const Index = () => {
         {eventsForDay.map((ev) => {
           const startMinutes = timeToMinutes(ev.startTime);
           const endMinutes = timeToMinutes(ev.endTime);
-          const top = (startMinutes / TIME_STEP) * (EVENT_SLOT_HEIGHT / (TIME_STEP / TIME_STEP)); // simplified to startMinutes / TIME_STEP * EVENT_SLOT_HEIGHT
+          // Adjust the top relative to the new DAY_START base
+          const top = ((startMinutes - DAY_START) / TIME_STEP) * EVENT_SLOT_HEIGHT;
           const height = ((endMinutes - startMinutes) / TIME_STEP) * EVENT_SLOT_HEIGHT;
           const categoryColor = categories.find((c) => c.value === ev.category)?.color || "bg-gray-400";
 
@@ -265,9 +261,10 @@ const Index = () => {
           <DialogTrigger asChild>
             <Button>Add Event</Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md" aria-describedby="add-event-desc">
             <DialogHeader>
               <DialogTitle>Add New Event</DialogTitle>
+              <p id="add-event-desc" className="text-sm text-muted-foreground">Fill the details for the new event.</p>
             </DialogHeader>
             <form
               onSubmit={(e) => {
@@ -412,9 +409,10 @@ const Index = () => {
 
       {/* Event Detail Dialog */}
       <Dialog open={openDetail} onOpenChange={setOpenDetail}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" aria-describedby="event-detail-desc">
           <DialogHeader>
             <DialogTitle>Event Details</DialogTitle>
+            <p id="event-detail-desc" className="text-sm text-muted-foreground">Details of the selected event.</p>
           </DialogHeader>
           {selectedEvent ? (
             <div className="space-y-3">
